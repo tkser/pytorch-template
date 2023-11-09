@@ -11,10 +11,41 @@ tqdm = "^4.66.1"
 numpy = "^1.26.1"
 torch = {version = "^2.1.0+cu118", source = "torch_cu118"}
 
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.5"
+
 [[tool.poetry.source]]
 name = "torch_cu118"
 url = "https://download.pytorch.org/whl/cu118"
 priority = "explicit"
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+ignore = [
+    "G004",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "ANN101",
+    "ANN102",
+    "ANN002",
+    "ANN003"
+]
+select = [
+    "ALL"
+]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
 
 [build-system]
 requires = ["poetry-core"]
