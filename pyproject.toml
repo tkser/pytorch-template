@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "pytorch_template"
+version = "0.1.0"
+description = ""
+authors = ["tksnn <tkser.edu@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+tqdm = "^4.66.1"
+numpy = "^1.26.1"
+torch = {version = "^2.1.0+cu118", source = "torch_cu118"}
+
+[[tool.poetry.source]]
+name = "torch_cu118"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
