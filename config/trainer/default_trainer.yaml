@@ -1,0 +1,4 @@
+metric: val_loss
+mode: min
+args:
+  max_epochs: 100
