@@ -2,6 +2,7 @@ from pathlib import Path
 
 import lightning as l
 import numpy as np
+from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
@@ -31,14 +32,14 @@ class DataModule(l.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super(__class__, self).__init__()
 
-        self.in_path_glob = cfg.data.in_path_glob
-        self.out_path_glob = cfg.data.out_path_glob
+        self.in_path_glob = cfg.in_path_glob
+        self.out_path_glob = cfg.out_path_glob
 
-        self.batch_size = cfg.data.batch_size
-        self.num_workers = cfg.data.num_workers
-        self.split = cfg.data.split
+        self.batch_size = cfg.batch_size
+        self.num_workers = cfg.num_workers
+        self.split = cfg.split
 
-        self.collate_fn = cfg.data.collate_fn
+        self.collate_fn = instantiate(cfg.collate_fn)
 
     def setup(self, _: str | None = None) -> None:
         in_paths = Path.glob(self.in_path_glob)
@@ -55,6 +56,7 @@ class DataModule(l.LightningDataModule):
         self.val_dataset = Dataset(in_paths[self.split[0] : self.split[1]], out_paths[self.split[0] : self.split[1]])
         self.test_dataset = Dataset(in_paths[self.split[1] :], out_paths[self.split[1] :])
 
+    @property
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
             self.train_dataset,
@@ -65,6 +67,7 @@ class DataModule(l.LightningDataModule):
             pin_memory=True,
         )
 
+    @property
     def val_dataloader(self) -> DataLoader:
         return DataLoader(
             self.val_dataset,
@@ -75,6 +78,7 @@ class DataModule(l.LightningDataModule):
             pin_memory=True,
         )
 
+    @property
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
             self.test_dataset,
