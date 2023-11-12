@@ -1,21 +1,77 @@
-import lightning as l
 import torch
-from hydra.utils import instantiate
-from omegaconf import DictConfig
+from lightning import LightningModule
+from lightning.pytorch.utilities.types import STEP_OUTPUT
+from torch import Tensor, nn, optim
+
+from pytorch_template.config import Config
+from pytorch_template.networks.predictor import Predictor
 
 
-class LitModule(l.LightningModule):
-    def __init__(self, cfg: DictConfig) -> None:
+class LitModule(LightningModule):
+    def __init__(self, cfg: Config) -> None:
         super().__init__()
 
-        self.model = instantiate(cfg.model.instance)
-        self.learning_rate = cfg.model.learning_rate
+        self.model = Predictor(**cfg.model)
 
-        self.optimizer = instantiate(cfg.model.optimizer, params=self.parameters(), lr=self.learning_rate)
-        self.scheduler = instantiate(cfg.model.scheduler, optimizer=self.optimizer)
+        if cfg.optimizer.name == "Adam":
+            self.optimizer = optim.Adam(self.model.parameters(), **cfg.optimizer.args)
+        else:
+            raise NotImplementedError
 
-    def forward(self, **x) -> torch.Tensor:
-        return self.model(**x)
+        if cfg.scheduler.name == "StepLR":
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, **cfg.scheduler.args)
+        else:
+            raise NotImplementedError
+
+        if cfg.loss.name == "L1Loss":
+            self.loss_fn = nn.L1Loss(**cfg.loss.args)
+        elif cfg.loss.name == "MSELoss":
+            self.loss_fn = nn.MSELoss(**cfg.loss.args)
+        elif cfg.loss.name == "HuberLoss":
+            self.loss_fn = nn.HuberLoss(**cfg.loss.args)
+        else:
+            raise NotImplementedError
+
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model(x)
+
+    def training_step(self, batch: tuple[Tensor, Tensor, Tensor], _: int) -> STEP_OUTPUT:
+        inputs, targets, masks = batch
+        outputs = self.forward(inputs)
+
+        outputs, targets = outputs[masks], targets[masks]
+
+        loss = self.loss_fn(outputs, targets).mean()
+
+        result = {"loss": loss}
+        self.training_step_outputs.append(result)
+
+        return result
+
+    def on_train_epoch_end(self) -> None:
+        loss = torch.stack([x["loss"] for x in self.training_step_outputs]).mean()
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+        self.log("lr", self.scheduler.get_last_lr()[0], prog_bar=False, on_epoch=True)
+
+    def validation_step(self, batch: tuple[Tensor, Tensor, Tensor], _: int) -> STEP_OUTPUT:
+        inputs, targets, masks = batch
+        outputs = self.forward(inputs)
+
+        outputs, targets = outputs[masks], targets[masks]
+
+        loss = self.loss_fn(outputs, targets).mean()
+
+        result = {"loss": loss}
+        self.validation_step_outputs.append(result)
+
+        return result
+
+    def on_validation_epoch_end(self) -> None:
+        loss = torch.stack([x["loss"] for x in self.validation_step_outputs]).mean()
+        self.log("val_loss", loss, prog_bar=True, on_epoch=True)
 
     def configure_optimizers(self) -> tuple[list, list]:
         return [self.optimizer], [self.scheduler]

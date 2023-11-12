@@ -1,11 +1,11 @@
 from pathlib import Path
 
-import lightning as l
 import numpy as np
-from hydra.utils import instantiate
-from omegaconf import DictConfig
+from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
+
+from pytorch_template.config import DataConfig
 
 
 class Dataset(TorchDataset):
@@ -28,8 +28,8 @@ class Dataset(TorchDataset):
         return in_data, out_data
 
 
-class DataModule(l.LightningDataModule):
-    def __init__(self, cfg: DictConfig) -> None:
+class DataModule(LightningDataModule):
+    def __init__(self, cfg: DataConfig) -> None:
         super(__class__, self).__init__()
 
         self.in_path_glob = cfg.in_path_glob
@@ -39,11 +39,15 @@ class DataModule(l.LightningDataModule):
         self.num_workers = cfg.num_workers
         self.split = cfg.split
 
-        self.collate_fn = instantiate(cfg.collate_fn)
+        self.collate_fn = None
 
     def setup(self, _: str | None = None) -> None:
-        in_paths = Path.glob(self.in_path_glob)
-        out_paths = Path.glob(self.out_path_glob)
+        if self.in_path_glob is None or self.out_path_glob is None:
+            msg = "Input and output path globs must be specified."
+            raise ValueError(msg)
+
+        in_paths = sorted(Path().glob(self.in_path_glob))
+        out_paths = sorted(Path().glob(self.out_path_glob))
 
         if len(in_paths) != len(out_paths):
             msg = "Number of input and output files must be the same."

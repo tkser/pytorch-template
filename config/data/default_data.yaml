@@ -1,9 +1,0 @@
-in_path_glob: /path/to/in_feats/*.npy
-out_path_glob: /path/to/out_feats/*.npy
-
-batch_size: 32
-num_workers: 4
-split: [0.7, 0.2, 0.1]
-
-collate_fn:
-  __target__: pytorch_template.path.to.collate_fn

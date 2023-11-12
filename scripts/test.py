@@ -1,35 +1,39 @@
-import argparse
+from argparse import ArgumentParser
 from pathlib import Path
 
-import hydra
-import lightning as l
-from hydra.utils import instantiate
-from omegaconf import DictConfig
+from lightning import Trainer, seed_everything
+from omegaconf import OmegaConf
+from torch import set_float32_matmul_precision
 
+from pytorch_template.config import Config
 from pytorch_template.dataset import DataModule
+from pytorch_template.model import LitModule
 
 
-@hydra.main(config_path="../config", config_name="default_config")
 def test(
-    cfg: DictConfig,
-    ckpt_path: Path,
+    cfg: Config,
+    model_path: Path,
 ) -> None:
-    l.seed_everything(cfg.seed)
+    seed_everything(cfg.seed)
+    set_float32_matmul_precision("high")
 
-    model = instantiate(cfg.model.instance)
+    model = LitModule(cfg)
 
     dm = DataModule(cfg.data)
     dm.setup()
 
-    trainer = l.Trainer(
-        **cfg.trainer.args,
+    trainer = Trainer(
+        **cfg.trainer,
     )
-    trainer.test(model, dm.test_loader, ckpt_path=ckpt_path)
+    trainer.test(model, dm.test_dataloader, ckpt_path=model_path)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt_path", type=str, required=True)
+    parser = ArgumentParser()
+    parser.add_argument("--config", type=Path, default="conf/default_config.yaml")
+    parser.add_argument("--model-path", type=Path, required=True)
     args = parser.parse_args()
 
-    test(ckpt_path=Path(args.ckpt_path))
+    cfg = OmegaConf.load(args.config)
+
+    test(cfg, args.model_path)
