@@ -27,6 +27,10 @@ def train(
     logger.watch(model)
     logger.log_hyperparams(cfg)
 
+    model_dir_path = Path(cfg.callbacks.ModelCheckpoint.dirpath + "/" + logger.experiment.name)
+    model_dir_path.mkdir(parents=True, exist_ok=True)
+    cfg.callbacks.ModelCheckpoint.dirpath = str(model_dir_path)
+
     early_stopping = EarlyStopping(**cfg.callbacks.EarlyStopping)
     model_checkpoint = ModelCheckpoint(**cfg.callbacks.ModelCheckpoint)
 
@@ -36,6 +40,8 @@ def train(
         **cfg.trainer,
     )
     trainer.fit(model, dm.train_dataloader, dm.val_dataloader)
+
+    OmegaConf.save(cfg, str(model_dir_path / "config.yaml"))
 
 
 if __name__ == "__main__":
